@@ -1,7 +1,7 @@
 package com.linynag.tqf.queue;
 
-import com.vdp.common.component.queue.status.QueueStats;
-import com.vdp.common.component.queue.status.QueueStatus;
+import com.linynag.tqf.queue.status.QueueStats;
+import com.linynag.tqf.queue.status.QueueStatus;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -73,8 +73,7 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
 
 	public int putq(MESSAGE_BLOCK msgBlock) {
 		if (!this.msgQ_.offer(msgBlock)) {
-			log.error(
-					"Task putq error, taskName[{}], archive[{}]", this.qName_,
+			log.error("Task putq error, taskName[{}], archive[{}]", this.qName_,
 					this.msgQ_.size());
 			return -1;
 		}

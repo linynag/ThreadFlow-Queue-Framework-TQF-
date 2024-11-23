@@ -1,7 +1,7 @@
 package com.linynag.tqf.queue;
 
-import com.vdp.common.component.queue.status.QueueStats;
-import com.vdp.common.component.queue.status.QueueStatus;
+import com.linynag.tqf.queue.status.QueueStats;
+import com.linynag.tqf.queue.status.QueueStatus;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;

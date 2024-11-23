@@ -1,8 +1,8 @@
 package com.linynag.tqf.queue.status;
 
 
-import com.vdp.common.component.queue.CircularQueue;
-import com.vdp.common.component.queue.Queue_I;
+import com.linynag.tqf.queue.CircularQueue;
+import com.linynag.tqf.queue.Queue_I;
 
 import java.util.ArrayList;
 import java.util.List;

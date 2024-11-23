@@ -1,7 +1,7 @@
 package com.linynag.tqf.queue;
 
 
-import com.vdp.common.component.queue.status.QueueStatus;
+import com.linynag.tqf.queue.status.QueueStatus;
 
 import java.util.List;
 
