@@ -1,4 +1,5 @@
-package com.linynag.tqf.queue;
+package com.example.demo.queue;
+
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -1,4 +1,4 @@
-package com.linynag.tqf.queue;
+package com.example.demo.queue;
 
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;

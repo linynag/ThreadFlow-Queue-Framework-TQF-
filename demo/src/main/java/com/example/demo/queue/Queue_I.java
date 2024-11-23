@@ -1,7 +1,7 @@
-package com.linynag.tqf.queue;
+package com.example.demo.queue;
 
 
-import com.linynag.tqf.queue.status.QueueStatus;
+import com.example.demo.queue.status.QueueStatus;
 
 import java.util.List;
 

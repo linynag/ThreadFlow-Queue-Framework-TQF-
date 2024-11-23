@@ -1,7 +1,7 @@
-package com.linynag.tqf.queue.status;
+package com.example.demo.queue.status;
 
 
-import com.vdp.common.component.timer.TimeScheduler;
+import com.linynag.tqf.timer.TimeScheduler;
 
 import java.util.ArrayList;
 import java.util.List;

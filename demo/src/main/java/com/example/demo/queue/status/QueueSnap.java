@@ -1,4 +1,4 @@
-package com.linynag.tqf.queue.status;
+package com.example.demo.queue.status;
 
 public class QueueSnap {
 	private long stime;

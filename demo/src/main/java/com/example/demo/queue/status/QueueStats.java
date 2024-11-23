@@ -1,8 +1,10 @@
-package com.linynag.tqf.queue.status;
+package com.example.demo.queue.status;
 
 
-import com.linynag.tqf.queue.CircularQueue;
-import com.linynag.tqf.queue.Queue_I;
+import com.example.demo.queue.CircularQueue;
+import com.example.demo.queue.Queue_I;
+import com.example.demo.queue.status.QueueStatsMgr;
+import com.example.demo.queue.status.QueueStatus;
 
 import java.util.ArrayList;
 import java.util.List;

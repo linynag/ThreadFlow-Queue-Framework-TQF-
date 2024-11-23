@@ -1,4 +1,4 @@
-package timer;
+package com.example.demo.timer;
 
 import lombok.extern.slf4j.Slf4j;
 

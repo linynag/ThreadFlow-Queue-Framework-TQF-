@@ -1,12 +1,13 @@
-package com.linynag.tqf.queue;
+package com.example.demo.queue;
 
-import com.linynag.tqf.queue.status.QueueStats;
-import com.linynag.tqf.queue.status.QueueStatus;
+import com.example.demo.queue.status.QueueStats;
+import com.example.demo.queue.status.QueueStatus;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+
 
 /**   
  * @ClassName:  Queue   

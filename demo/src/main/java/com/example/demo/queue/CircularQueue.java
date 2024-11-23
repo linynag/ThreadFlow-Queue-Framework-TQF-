@@ -1,4 +1,4 @@
-package com.linynag.tqf.queue;
+package com.example.demo.queue;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
