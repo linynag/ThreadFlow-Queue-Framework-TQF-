@@ -12,34 +12,36 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * @ClassName: SequenceQueue
- * @Description:内部队列抽象类，
- *                       <P>
- *                       N个线程各自对应一个阻塞式队列(BlockingQueue)
- * @author: guozhen
- * @date: 2017年10月24日 下午4:15:51
+ * 顺序队列实现
  * 
- * @param <MESSAGE_BLOCK>
+ * 特点:
+ * - 每个线程对应一个阻塞队列
+ * - 根据任务序号分配到对应线程队列
+ * - 支持队列状态监控
  */
 @Slf4j
 public abstract class SequenceQueue<MESSAGE_BLOCK> implements Queue_I {
-	
-	QueueStats stats = new QueueStats();
 
-	// private AtomicLong msgCount_ = new AtomicLong(0);
-	private AtomicLong msgTCount_[] = null;
-	private HashMap<Integer, AtomicLong> index2MsgCountMap_ = new HashMap<Integer, AtomicLong>();
+    // 队列统计信息
+    QueueStats stats = new QueueStats();
 
-	protected int threadNum_ = 1;
-	private String qName_;
-	private Executor tpExecutor_ = null;
+    // 每个线程的消息计数器
+    private AtomicLong[] msgTCount_;
+    private HashMap<Integer, AtomicLong> index2MsgCountMap_ = new HashMap<>();
 
-	private AtomicInteger qIndex_ = new AtomicInteger(0);
-	protected BlockingQueue<MESSAGE_BLOCK>[] msgQArray_ = null;
+    // 线程数和队列名称
+    protected int threadNum_ = 1;
+    private String qName_;
+    private Executor tpExecutor_;
 
-	/** 初始化，每个队列的长度 */
-	private int qLen;
+    // 线程队列索引
+    private AtomicInteger qIndex_ = new AtomicInteger(0);
+    protected BlockingQueue<MESSAGE_BLOCK>[] msgQArray_;
 
+    // 队列容量
+    private int qLen;
+
+	// 线程本地队列
 	private final ThreadLocal<BlockingQueue<MESSAGE_BLOCK>> msgQ_ = new ThreadLocal<BlockingQueue<MESSAGE_BLOCK>>() {
 		// getQ之前,初始化每个线程对应的队列
 		@Override
@@ -49,155 +51,153 @@ public abstract class SequenceQueue<MESSAGE_BLOCK> implements Queue_I {
 		}
 	};
 
-	@SuppressWarnings("unchecked")
-	public void start(String qName, int threadNum, int qLen) {
-		this.qName_ = qName;
-		this.stats.setName(qName);
-		QueueMMLMgr.getInstance().registerQueueMML(qName, this);
+    /**
+     * 启动队列处理器
+     */
+    @SuppressWarnings("unchecked")
+    public void start(String qName, int threadNum, int qLen) {
+        this.qName_ = qName;
+        this.stats.setName(qName);
+        QueueMMLMgr.getInstance().registerQueueMML(qName, this);
 
-		if (threadNum <= 0) {
-			threadNum = 2;
-		}
-		this.stats.setThreadNumber(threadNum);
-		if (qLen <= 0) {
-			qLen = 10000;
-		}
-		this.stats.setQueueLength(qLen);
-		this.qLen = qLen;
+        // 设置默认线程数和队列长度
+        threadNum = threadNum <= 0 ? 2 : threadNum;
+        qLen = qLen <= 0 ? 10000 : qLen;
+        
+        this.stats.setThreadNumber(threadNum);
+        this.stats.setQueueLength(qLen);
+        this.qLen = qLen;
+        this.threadNum_ = threadNum;
 
-		this.threadNum_ = threadNum;
-		this.msgQArray_ = new BlockingQueue[threadNum];
-		this.msgTCount_ = new AtomicLong[threadNum];
-		this.tpExecutor_ = Executors.newFixedThreadPool(threadNum);
-		for (int i = 0; i < threadNum; i++) {
-			AtomicLong msgCount = new AtomicLong(0);
-			this.index2MsgCountMap_.put(i, msgCount);
-			this.msgQArray_[i] = new LinkedBlockingQueue<MESSAGE_BLOCK>(qLen);
-			this.msgTCount_[i] = new AtomicLong(0);
-		}
-		for (int i = 0; i < threadNum; i++) {
-			this.tpExecutor_.execute(() -> svc());
-		}
-		this.stats.setQueue(this);
-		this.stats.register();
-	}
+        // 初始化队列数组和计数器
+        this.msgQArray_ = new BlockingQueue[threadNum];
+        this.msgTCount_ = new AtomicLong[threadNum];
+        this.tpExecutor_ = Executors.newFixedThreadPool(threadNum);
 
-	public abstract void svc();
+        // 为每个线程创建队列和计数器
+        for (int i = 0; i < threadNum; i++) {
+            AtomicLong msgCount = new AtomicLong(0);
+            this.index2MsgCountMap_.put(i, msgCount);
+            this.msgQArray_[i] = new LinkedBlockingQueue<>(qLen);
+            this.msgTCount_[i] = new AtomicLong(0);
+        }
 
-	public int putq(int taskSeq, MESSAGE_BLOCK msgBlock) {
-		//取对象的hashcode时有几率返回是负数，负数求余结果还是为负导致找不到对应的队列
-		if(taskSeq < 0)taskSeq = Math.abs(taskSeq);
+        // 启动工作线程
+        for (int i = 0; i < threadNum; i++) {
+            this.tpExecutor_.execute(this::svc);
+        }
 
-		int index = taskSeq % this.threadNum_;
-		if (!this.msgQArray_[index].offer(msgBlock)) {
-			log.error("SequenceTask putq error, taskName[{}]", this.qName_);
-			return -1;
-		}
-		this.stats.getReceiveTotal().incrementAndGet();
-		this.msgTCount_[index].addAndGet(1);
-		// this.msgCount_.addAndGet(1);
-		this.index2MsgCountMap_.get(index).addAndGet(1);
-		return 0;
-	}
+        this.stats.setQueue(this);
+        this.stats.register();
+    }
 
-	public int putq(long taskSeq, MESSAGE_BLOCK msgBlock) {
-		return putq((int) taskSeq, msgBlock);
-	}
+    /**
+     * 具体的队列处理逻辑,由子类实现
+     */
+    public abstract void svc();
 
-	/** 每个线程从对应的队列中获取数据 */
-	public MESSAGE_BLOCK getq() {
-		try {
-			this.stats.getHandlerTotal().incrementAndGet();
-			// System.err.println("getQ---------" +
-			// Thread.currentThread().getId() + "---" + msgQ_.get().hashCode());
-			BlockingQueue<MESSAGE_BLOCK> message_blocks = this.msgQ_.get();
-			MESSAGE_BLOCK take = message_blocks.take();
-			return take;
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			this.stats.getHandlerTotal().decrementAndGet();
-			log.error("执行getq()方法发生异常!",e);
-		}
+    /**
+     * 添加消息到指定序号的队列
+     */
+    public int putq(int taskSeq, MESSAGE_BLOCK msgBlock) {
+        taskSeq = Math.abs(taskSeq); // 处理负数序号
+        int index = taskSeq % this.threadNum_;
+        
+        if (!this.msgQArray_[index].offer(msgBlock)) {
+            log.error("添加消息到队列失败, 队列名称[{}]", this.qName_);
+            return -1;
+        }
 
-		return null;
-	}
+        this.stats.getReceiveTotal().incrementAndGet();
+        this.msgTCount_[index].incrementAndGet();
+        this.index2MsgCountMap_.get(index).incrementAndGet();
+        return 0;
+    }
 
-	/** 每个线程从对应的队列中获取数据 */
-	public MESSAGE_BLOCK getq(long milliSeconds) {
-		try {
-			this.stats.getHandlerTotal().incrementAndGet();
-			return this.msgQ_.get().poll(milliSeconds, TimeUnit.MILLISECONDS);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			this.stats.getHandlerTotal().decrementAndGet();
-			log.error("执行getq(long milliSeconds)方法发生异常!",e);
-		}
+    public int putq(long taskSeq, MESSAGE_BLOCK msgBlock) {
+        return putq((int) taskSeq, msgBlock);
+    }
 
-		return null;
-	}
+    /**
+     * 从当前线程对应的队列获取消息(阻塞)
+     */
+    public MESSAGE_BLOCK getq() {
+        try {
+            this.stats.getHandledTotal().incrementAndGet();
+            return this.msgQ_.get().take();
+        } catch (InterruptedException e) {
+            this.stats.getHandledTotal().decrementAndGet();
+            log.error("获取队列消息异常", e);
+            return null;
+        }
+    }
 
-	/**
-	 * 是否可以添加元素，现在的算法是：每个BlockQueue的要剩下多于20%的空间，才返回true，不然返回false
-	 * 
-	 * @return 可以添加-true 不可以添加-false
-	 */
-	public boolean isCanPut() {
+    /**
+     * 从当前线程对应的队列获取消息(超时)
+     */
+    public MESSAGE_BLOCK getq(long milliSeconds) {
+        try {
+            this.stats.getHandledTotal().incrementAndGet();
+            return this.msgQ_.get().poll(milliSeconds, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            this.stats.getHandledTotal().decrementAndGet();
+            log.error("获取队列消息异常", e);
+            return null;
+        }
+    }
 
-		if (msgQArray_ == null) {
-			return false;
-		}
+    /**
+     * 检查队列是否可以继续添加消息
+     * 当任一队列使用率超过80%时返回false
+     */
+    public boolean isCanPut() {
+        if (msgQArray_ == null) {
+            return false;
+        }
 
-		for (BlockingQueue<MESSAGE_BLOCK> queue : msgQArray_) {
+        for (BlockingQueue<MESSAGE_BLOCK> queue : msgQArray_) {
+            if (queue == null || (queue.size() / qLen) > 0.8) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-			if (queue == null || (queue.size() / qLen) > 0.8) {
-				return false;
-			}
-		}
+    /**
+     * 打印队列状态信息
+     */
+    public void infoQueue() {
+        if (msgQArray_ == null) {
+            log.info("队列未初始化");
+            return;
+        }
 
-		return true;
-	}
+        for (int i = 0; i < msgQArray_.length; i++) {
+            BlockingQueue<MESSAGE_BLOCK> queue = msgQArray_[i];
+            AtomicLong countNums = msgTCount_[i];
 
-	public void infoQueue() {
-		if (msgQArray_ == null) {
-			log.info("发现队列为null");
-			return;
-		}
+            if (queue != null) {
+                log.info("队列[{}] 容量[{}] 当前大小[{}] 已处理消息数[{}]", 
+                    i, qLen, queue.size(), countNums.get());
+            }
+        }
+    }
 
-		for (int i = 0; i < msgQArray_.length; i++) {
-			BlockingQueue<MESSAGE_BLOCK> queue = msgQArray_[i];
-			AtomicLong countNums = msgTCount_[i];
+    public String getqName() {
+        return qName_;
+    }
 
-			if (queue == null) {
-				continue;
-			}
-
-			log.info(" queue编号[{}]的初始化队列深度为 [{}],现在队列的数量为[{}],目前已处理数据量为[{}]", i, qLen, queue.size(), countNums.get());
-		}
-	}
-
-	/**
-	 * 
-	 * 获取qName_
-	 * 
-	 * @return qName_ qName_
-	 */
-
-	public String getqName() {
-		return qName_;
-	}
-
-	@Override
-	public List<QueueStatus> getQueueStatus() {
-		List<QueueStatus> status = new ArrayList<>();
-		for (int i = 0; i < this.threadNum_; i++) {
-			QueueStatus qs = new QueueStatus();
-			qs.setQueueIndex(i + 1);
-			qs.setMessageCount(this.msgTCount_[i].get());
-			qs.setQueuelength(this.msgQArray_[i].size());
-			qs.setQueuecapacity(qLen);
-			status.add(qs);
-		}
-
-		return status;
-	}
+    @Override
+    public List<QueueStatus> getQueueStatus() {
+        List<QueueStatus> status = new ArrayList<>();
+        for (int i = 0; i < this.threadNum_; i++) {
+            QueueStatus qs = new QueueStatus();
+            qs.setQueueIndex(i + 1);
+            qs.setMessageCount(this.msgTCount_[i].get());
+            qs.setQueuelength(this.msgQArray_[i].size());
+            qs.setQueuecapacity(qLen);
+            status.add(qs);
+        }
+        return status;
+    }
 }

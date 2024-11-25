@@ -8,162 +8,153 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
-
-/**   
- * @ClassName:  Queue   
- * @Description: 内部队列抽象类，
- * <P>N个线程共同操作一个阻塞式队列(BlockingQueue)
- * @author: guozhen 
- * @date:   2017年10月24日 上午11:00:17   
- *   
- * @param <MESSAGE_BLOCK>  
+/**
+ * 多线程阻塞队列实现
+ * 
+ * 功能:
+ * - 支持多线程并发处理队列消息
+ * - 提供阻塞式消息读写
+ * - 统计队列状态信息
+ * - 支持队列容量限制
  */
 @Slf4j
 public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
-	QueueStats stats = new QueueStats();
+    // 队列统计信息
+    QueueStats stats = new QueueStats();
 
-	private String qName_;
-	private Executor tpExecutor_ = null;
-	private BlockingQueue<MESSAGE_BLOCK> msgQ_ = null;
+    // 队列名称
+    private String qName_;
+    // 线程池执行器
+    private Executor tpExecutor_ = null;
+    // 阻塞队列
+    private BlockingQueue<MESSAGE_BLOCK> msgQ_ = null;
+    // 队列容量
+    private int qLen;
 
-	private int qLen;
+    /**
+     * 启动队列处理器
+     * 
+     * @param qName 队列名称
+     * @param threadNum 处理线程数
+     * @param qLen 队列容量
+     */
+    public void start(String qName, int threadNum, int qLen) {
+        this.qName_ = qName;
+        QueueMMLMgr.getInstance().registerQueueMML(qName, this);
+        this.stats.setName(qName);
 
-	/**
-	 * 开启队列处理器
-	 * 
-	 * @param qName
-	 * @param threadNum
-	 * @param qLen
-	 */
-	public void start(String qName, int threadNum, int qLen) {
+        // 设置默认线程数和队列长度
+        threadNum = threadNum <= 0 ? 2 : threadNum;
+        qLen = qLen <= 0 ? 10000 : qLen;
+        
+        this.stats.setThreadNumber(threadNum);
+        this.stats.setQueueLength(qLen);
+        this.qLen = qLen;
 
-		this.qName_ = qName;
-		//将队列存进QueueMMLMgr的mmlMap_中，key为队列名字，value为队列
-		QueueMMLMgr.getInstance().registerQueueMML(qName, this);
-		this.stats.setName(qName);
+        // 初始化阻塞队列和线程池
+        this.msgQ_ = new LinkedBlockingQueue<>(qLen);
+        this.tpExecutor_ = Executors.newFixedThreadPool(threadNum);
 
-		if (threadNum <= 0) {
-			threadNum = 2;
-		}
-		this.stats.setThreadNumber(threadNum);
-		if (qLen <= 0) {
-			qLen = 10000;
-		}
-		this.stats.setQueueLength(qLen);
-		// 保存队列长度
-		this.qLen = qLen;
+        // 启动工作线程
+        for (int i = 0; i < threadNum; i++) {
+            this.tpExecutor_.execute(this::svc);
+        }
 
-		this.msgQ_ = new LinkedBlockingQueue<MESSAGE_BLOCK>(qLen);
-		//newFixedThreadPool(threadNum)  线程池中维护threadNum条线程
-		this.tpExecutor_ = Executors.newFixedThreadPool(threadNum);
+        this.stats.setQueue(this);
+        this.stats.register();
+    }
 
-		for (int i = 0; i < threadNum; i++) {//一次循环取一条线程去执行
-			this.tpExecutor_.execute(new Runnable() {
-				@Override
-				public void run() {
-					svc();
-				}
-			});
-		}
+    /**
+     * 具体的队列处理逻辑,由子类实现
+     */
+    public abstract void svc();
 
-		this.stats.setQueue(this);
-		this.stats.register();
-	}
+    /**
+     * 添加消息到队列
+     */
+    public int putq(MESSAGE_BLOCK msgBlock) {
+        if (!this.msgQ_.offer(msgBlock)) {
+            log.error("队列添加消息失败, 队列名称[{}], 当前大小[{}]", this.qName_, this.msgQ_.size());
+            return -1;
+        }
+        this.stats.getReceiveTotal().incrementAndGet();
+        return 0;
+    }
 
-	public abstract void svc();
+    /**
+     * 从队列获取消息(阻塞)
+     */
+    public MESSAGE_BLOCK getq() {
+        try {
+            this.stats.getHandledTotal().incrementAndGet();
+            return this.msgQ_.take();
+        } catch (InterruptedException e) {
+            this.stats.getHandledTotal().decrementAndGet();
+            log.error("获取队列消息异常", e);
+        }
+        return null;
+    }
 
-	public int putq(MESSAGE_BLOCK msgBlock) {
-		if (!this.msgQ_.offer(msgBlock)) {
-			log.error("Task putq error, taskName[{}], archive[{}]", this.qName_,
-					this.msgQ_.size());
-			return -1;
-		}
+    /**
+     * 从队列获取消息(超时)
+     */
+    public MESSAGE_BLOCK getq(long milliSeconds) {
+        try {
+            this.stats.getHandledTotal().incrementAndGet();
+            return this.msgQ_.poll(milliSeconds, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            this.stats.getHandledTotal().decrementAndGet();
+            log.error("获取队列消息异常", e);
+        }
+        return null;
+    }
 
-		this.stats.getReceiveTotal().incrementAndGet();
-		return 0;
-	}
+    /**
+     * 获取当前队列大小
+     */
+    public int getQueueSize() {
+        return this.msgQ_.size();
+    }
 
-	public MESSAGE_BLOCK getq() {
-		try {
-			this.stats.getHandlerTotal().incrementAndGet();
-			return this.msgQ_.take();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			this.stats.getHandlerTotal().decrementAndGet();
-			log.error("调用getq()方法发生异常",e);
-		}
+    /**
+     * 获取已入队的消息总数
+     */
+    public long getHasPutElementsLength() {
+        return this.stats.getReceiveTotal().get();
+    }
 
-		return null;
-	}
+    /**
+     * 检查队列是否可以继续添加消息
+     * 当队列使用率超过80%时返回false
+     */
+    public boolean isCanPut() {
+        if (this.msgQ_.size() / qLen > 0.8) {
+            log.info("队列[{}]已达到容量上限(80%), 总容量[{}], 当前大小[{}], 累计接收[{}]",
+                    this.qName_, qLen, this.msgQ_.size(), 
+                    this.stats.getReceiveTotal().get());
+            return false;
+        }
+        return true;
+    }
 
-	public MESSAGE_BLOCK getq(long milliSeconds) {
-		try {
-			this.stats.getHandlerTotal().incrementAndGet();
-			return this.msgQ_.poll(milliSeconds, TimeUnit.MILLISECONDS);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			this.stats.getHandlerTotal().decrementAndGet();
-			log.error("调用getq(long milliSeconds)方法发生异常",e);
-		}
+    /**
+     * 获取队列名称
+     */
+    public String getqName() {
+        return qName_;
+    }
 
-		return null;
-	}
-
-
-	/**
-	 * 返回堵塞队列的长度
-	 * 
-	 * @return
-	 */
-	public int getQueueSize() {
-		return this.msgQ_.size();
-	}
-
-	/**
-	 * 共放了多少个对象到堵塞队列
-	 * 
-	 * @return
-	 */
-	public long getHasPutElementsLength() {
-		return this.stats.getReceiveTotal().get();
-	}
-
-	/**
-	 * 是否能put元素，如果队列的还未处理的元素超过队列的长度的80%，就返回false，意思就是不能put元素了，如果小于80%，则返回true，
-	 * 可以put元素
-	 * @return
-	 */
-	public boolean isCanPut() {
-
-		if (this.msgQ_.size() / qLen > 0.8) {
-			log.info(
-					"队列【{}】 总长度[{}] 未处理元素[{}] 已经超过80%，不能放元素了  共放入元素[{}]",
-					this.qName_, qLen, this.msgQ_.size(), this.stats
-							.getReceiveTotal().get());
-			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * 
-	 * 获取qName_
-	 * 
-	 * @return qName_ qName_
-	 */
-
-	public String getqName() {
-		return qName_;
-	}
-
-	public List<QueueStatus> getQueueStatus() {
-		List<QueueStatus> status = new ArrayList<>();
-		QueueStatus stat = new QueueStatus();
-		stat.setQueueIndex(1);
-		stat.setQueuelength(this.msgQ_.size());
-		stat.setMessageCount(this.stats.getReceiveTotal().get());
-		stat.setQueuecapacity(qLen);
-		status.add(stat);
-		return status;
-	}
+    /**
+     * 获取队列状态信息
+     */
+    public List<QueueStatus> getQueueStatus() {
+        List<QueueStatus> status = new ArrayList<>();
+        QueueStatus stat = new QueueStatus();
+        stat.setQueueIndex(1);
+        stat.setQueuelength(this.msgQ_.size());
+        stat.setMessageCount(this.stats.getReceiveTotal().get());
+        stat.setQueuecapacity(qLen);
+        status.add(stat);
+        return status;
+    }
 }

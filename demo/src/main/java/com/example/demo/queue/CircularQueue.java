@@ -5,12 +5,11 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 循环队列。 在有的场景下非常有用，不停的接首传感器传来的数据，显示到界面上。 开辟一个容量为200的循环队列，用于保存新收到的200个传感器数据，
- * 新接收到的数据覆盖前面的数据，需要显示的是最近新收到的数据， 比这200个还早的数据没有必要继续保存。 显示的GUI类遍历队列的数据绘制到界面上。
- *
- * ArrayBlockingQueue: 用循环数组实现的Queue
- *
- * for each 循环可以和任何实现了Iterable<E>接口的对象一起工作。
+ * 循环队列实现
+ * 适用场景:
+ * - 实时数据采集和显示,如传感器数据
+ * - 固定容量的数据缓存,新数据会覆盖旧数据
+ * - 支持并发访问的循环缓冲区
  */
 public class CircularQueue<T> implements Iterable<T> {
 	private int head = 0;

@@ -9,119 +9,132 @@ import com.example.demo.queue.status.QueueStatus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-/**   
- * @ClassName:  QueueStats   
- * @Description:内部队列详细信息 ，
- * <p> 描述队列的名称、线程数量、队列长度、最后处理时间、最后快照时间、最后接受时间、接受总量、处理总量
- * @author: guozhen 
- * @date:   2017年10月24日 下午4:00:09   
- *     
+/**
+ * 队列统计信息
+ * 
+ * 记录队列的运行状态,包括:
+ * - 队列基本信息(名称、线程数、队列长度)
+ * - 消息处理统计(接收总量、处理总量) 
+ * - 快照信息(定期采样的处理量)
+ * - 队列当前状态
  */
+@Data
 public class QueueStats {
-	// private static SimpleLogger logger_ = new SimpleLogger(
-	// CSTDataflowStatistic.class);
-	private Queue_I queue;
-	private String name;
-	private int threadNumber;
-	private int queueLength;
-	private AtomicLong receiveTotal = new AtomicLong(0);
-	private AtomicLong handledTotal = new AtomicLong(0);
-	private long lastSnapTime = System.currentTimeMillis();
-	private long lastReceivedTotal;
-	private long lastHandledTotal;
-	private CircularQueue<QueueSnap> snapQueue = new CircularQueue<>(
-			30);
-	private List<QueueStatus> status;
+    /**
+     * 队列实例
+     */
+    private Queue_I queue;
 
-	public void makdSnap() {
-		long stime = this.lastSnapTime;
-		long etime = System.currentTimeMillis();
-		this.lastSnapTime = etime;
-		long inflowCurr = receiveTotal.get();
-		long outflowCurr = handledTotal.get();
-		long inflow = inflowCurr - lastReceivedTotal;
-		long outflow = outflowCurr - lastHandledTotal;
-		this.lastReceivedTotal = inflowCurr;
-		this.lastHandledTotal = outflowCurr;
-		snapQueue.enqueue(new QueueSnap(stime, etime, inflow, outflow));
-	}
+    /**
+     * 队列名称
+     */
+    private String name;
 
-	public String getName() {
-		return name;
-	}
+    /**
+     * 处理线程数
+     */
+    private int threadNumber;
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    /**
+     * 队列长度
+     */
+    private int queueLength;
 
-	public AtomicLong getReceiveTotal() {
-		return receiveTotal;
-	}
+    /**
+     * 接收消息总量
+     */
+    private AtomicLong receiveTotal = new AtomicLong(0);
 
-	public AtomicLong getHandlerTotal() {
-		return handledTotal;
-	}
+    /**
+     * 已处理消息总量
+     */
+    private AtomicLong handledTotal = new AtomicLong(0);
 
-	public void addReceived(int size) {
-		// logger_.logInfo("{} Add Inflow: {}", this.getName(), size);
-		this.receiveTotal.addAndGet(size);
-	}
+    /**
+     * 上次快照时间
+     */
+    private long lastSnapTime = System.currentTimeMillis();
 
-	public void addHandled(int size) {
-		// logger_.logInfo("{} Add Outflow: {}", this.getName(), size);
-		this.handledTotal.addAndGet(size);
-	}
+    /**
+     * 上次快照时的接收总量
+     */
+    private long lastReceivedTotal;
 
-	public List<QueueSnap> getSnaps() {
-		List<QueueSnap> snaps = new ArrayList<>();
-		while (!snapQueue.isEmpty()) {
-			try {
-				snaps.add(snapQueue.dequeue());
-			} catch (Exception e) {
-				break;
-			}
-		}
-		return snaps;
-	}
+    /**
+     * 上次快照时的处理总量
+     */
+    private long lastHandledTotal;
 
-	public void register() {
-		QueueStatsMgr.getInstance().register(this);
-	}
+    /**
+     * 快照队列,保存最近30次采样数据
+     */
+    private CircularQueue<QueueSnap> snapQueue = new CircularQueue<>(30);
 
-	public int getThreadNumber() {
-		return threadNumber;
-	}
+    /**
+     * 队列当前状态
+     */
+    private List<QueueStatus> status;
 
-	public void setThreadNumber(int threadNumber) {
-		this.threadNumber = threadNumber;
-	}
+    /**
+     * 生成一次快照,记录两次快照间隔期间的处理量
+     */
+    public void makdSnap() {
+        long stime = this.lastSnapTime;
+        long etime = System.currentTimeMillis();
+        this.lastSnapTime = etime;
+        long inflowCurr = receiveTotal.get();
+        long outflowCurr = handledTotal.get();
+        long inflow = inflowCurr - lastReceivedTotal;
+        long outflow = outflowCurr - lastHandledTotal;
+        this.lastReceivedTotal = inflowCurr;
+        this.lastHandledTotal = outflowCurr;
+        snapQueue.enqueue(new QueueSnap(stime, etime, inflow, outflow));
+    }
 
-	public int getQueueLength() {
-		return queueLength;
-	}
+    /**
+     * 增加接收消息数
+     */
+    public void addReceived(int size) {
+        this.receiveTotal.addAndGet(size);
+    }
 
-	public void setQueueLength(int queueLength) {
-		this.queueLength = queueLength;
-	}
+    /**
+     * 增加已处理消息数
+     */
+    public void addHandled(int size) {
+        this.handledTotal.addAndGet(size);
+    }
 
-	public void update() {
-		this.status = this.queue.getQueueStatus();
-	}
+    /**
+     * 获取所有快照数据
+     */
+    public List<QueueSnap> getSnaps() {
+        List<QueueSnap> snaps = new ArrayList<>();
+        while (!snapQueue.isEmpty()) {
+            try {
+                snaps.add(snapQueue.dequeue());
+            } catch (Exception e) {
+                break;
+            }
+        }
+        return snaps;
+    }
 
-	public Queue_I getQueue() {
-		return queue;
-	}
+    /**
+     * 注册到统计管理器
+     */
+    public void register() {
+        QueueStatsMgr.getInstance().register(this);
+    }
 
-	public void setQueue(Queue_I queue) {
-		this.queue = queue;
-	}
-
-	public List<QueueStatus> getStatus() {
-		return status;
-	}
-
-	public void setStatus(List<QueueStatus> status) {
-		this.status = status;
-	}
+    /**
+     * 更新队列状态
+     */
+    public void update() {
+        this.status = this.queue.getQueueStatus();
+    }
 }
