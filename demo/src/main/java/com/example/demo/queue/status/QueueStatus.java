@@ -15,20 +15,20 @@ public class QueueStatus {
     /**
      * 队列位置ID
      */
-    private int queueIndex;
+    private int index;
 
     /**
      * 已处理的消息数量
      */
-    private long messageCount;
+    private long processedCount;
 
     /**
      * 未处理的消息数量
      */
-    private int queuelength;
+    private int pendingCount;
 
     /**
      * 队列最大容量
      */
-    private int queuecapacity;
+    private int capacity;
 }

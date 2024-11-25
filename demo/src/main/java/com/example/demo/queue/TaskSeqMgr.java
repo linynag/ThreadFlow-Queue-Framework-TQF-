@@ -10,45 +10,45 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class TaskSeqMgr {
     // 单例实例
-    private static TaskSeqMgr instance_ = null;
+    private static TaskSeqMgr instance = null;
     // 用于同步的锁对象
-    private ReentrantLock lock_ = new ReentrantLock();
+    private ReentrantLock syncLock = new ReentrantLock();
     // 存储服务ID和对应序列号的映射
-    private HashMap<String, AtomicInteger> seqMap = new HashMap<>();
+    private HashMap<String, AtomicInteger> serviceSequenceMap = new HashMap<>();
 
     /**
      * 获取TaskSeqMgr单例实例
      */
     public static TaskSeqMgr getInstance() {
-        if (instance_ == null) {
-            instance_ = new TaskSeqMgr();
+        if (instance == null) {
+            instance = new TaskSeqMgr();
         }
-        return instance_;
+        return instance;
     }
 
     /**
      * 为指定服务申请一个新的任务序列号
-     * @param svcID 服务ID
+     * @param serviceId 服务ID
      * @return 新的任务序列号
      */
-    public int applyTaskSeq(String svcID) {
-        lock_.lock();
+    public int applyTaskSeq(String serviceId) {
+        syncLock.lock();
         try {
-            seqMap.computeIfAbsent(svcID, k -> new AtomicInteger(0));
-            return seqMap.get(svcID).incrementAndGet();
+            serviceSequenceMap.computeIfAbsent(serviceId, k -> new AtomicInteger(0));
+            return serviceSequenceMap.get(serviceId).incrementAndGet();
         } finally {
-            lock_.unlock();
+            syncLock.unlock();
         }
     }
 
     /**
      * 释放任务序列号,当序列号接近最大值时重置为0
-     * @param svcID 服务ID
-     * @param taskSeq 当前任务序列号
+     * @param serviceId 服务ID
+     * @param sequenceNumber 当前任务序列号
      */
-    public void releaseTaskSeq(String svcID, int taskSeq) {
-        if (taskSeq > Integer.MAX_VALUE - 10000) {
-            seqMap.get(svcID).set(0);
+    public void releaseTaskSeq(String serviceId, int sequenceNumber) {
+        if (sequenceNumber > Integer.MAX_VALUE - 10000) {
+            serviceSequenceMap.get(serviceId).set(0);
         }
     }
 }

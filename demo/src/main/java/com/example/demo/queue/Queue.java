@@ -1,6 +1,6 @@
 package com.example.demo.queue;
 
-import com.example.demo.queue.status.QueueStats;
+import com.example.demo.queue.status.QueueStatistics;
 import com.example.demo.queue.status.QueueStatus;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,48 +20,48 @@ import java.util.concurrent.*;
 @Slf4j
 public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
     // 队列统计信息
-    QueueStats stats = new QueueStats();
+    QueueStatistics queueStatistics = new QueueStatistics();
 
     // 队列名称
-    private String qName_;
+    private String queueName;
     // 线程池执行器
-    private Executor tpExecutor_ = null;
+    private Executor threadPoolExecutor = null;
     // 阻塞队列
-    private BlockingQueue<MESSAGE_BLOCK> msgQ_ = null;
+    private BlockingQueue<MESSAGE_BLOCK> messageQueue = null;
     // 队列容量
-    private int qLen;
+    private int queueCapacity;
 
     /**
      * 启动队列处理器
      * 
-     * @param qName 队列名称
+     * @param queueName 队列名称
      * @param threadNum 处理线程数
-     * @param qLen 队列容量
+     * @param queueCapacity 队列容量
      */
-    public void start(String qName, int threadNum, int qLen) {
-        this.qName_ = qName;
-        QueueMMLMgr.getInstance().registerQueueMML(qName, this);
-        this.stats.setName(qName);
+    public void start(String queueName, int threadNum, int queueCapacity) {
+        this.queueName = queueName;
+        QueueMMLMgr.getInstance().registerQueueMML(queueName, this);
+        this.queueStatistics.setQueueName(queueName);
 
         // 设置默认线程数和队列长度
         threadNum = threadNum <= 0 ? 2 : threadNum;
-        qLen = qLen <= 0 ? 10000 : qLen;
+        queueCapacity = queueCapacity <= 0 ? 10000 : queueCapacity;
         
-        this.stats.setThreadNumber(threadNum);
-        this.stats.setQueueLength(qLen);
-        this.qLen = qLen;
+        this.queueStatistics.setThreadCount(threadNum);
+        this.queueStatistics.setMaxQueueSize(queueCapacity);
+        this.queueCapacity = queueCapacity;
 
         // 初始化阻塞队列和线程池
-        this.msgQ_ = new LinkedBlockingQueue<>(qLen);
-        this.tpExecutor_ = Executors.newFixedThreadPool(threadNum);
+        this.messageQueue = new LinkedBlockingQueue<>(queueCapacity);
+        this.threadPoolExecutor = Executors.newFixedThreadPool(threadNum);
 
         // 启动工作线程
         for (int i = 0; i < threadNum; i++) {
-            this.tpExecutor_.execute(this::svc);
+            this.threadPoolExecutor.execute(this::svc);
         }
 
-        this.stats.setQueue(this);
-        this.stats.register();
+        this.queueStatistics.setQueueInstance(this);
+        this.queueStatistics.register();
     }
 
     /**
@@ -72,12 +72,12 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
     /**
      * 添加消息到队列
      */
-    public int putq(MESSAGE_BLOCK msgBlock) {
-        if (!this.msgQ_.offer(msgBlock)) {
-            log.error("队列添加消息失败, 队列名称[{}], 当前大小[{}]", this.qName_, this.msgQ_.size());
+    public int putq(MESSAGE_BLOCK message) {
+        if (!this.messageQueue.offer(message)) {
+            log.error("队列添加消息失败, 队列名称[{}], 当前大小[{}]", this.queueName, this.messageQueue.size());
             return -1;
         }
-        this.stats.getReceiveTotal().incrementAndGet();
+        this.queueStatistics.getReceivedMessageCount().incrementAndGet();
         return 0;
     }
 
@@ -86,10 +86,10 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
      */
     public MESSAGE_BLOCK getq() {
         try {
-            this.stats.getHandledTotal().incrementAndGet();
-            return this.msgQ_.take();
+            this.queueStatistics.getProcessedMessageCount().incrementAndGet();
+            return this.messageQueue.take();
         } catch (InterruptedException e) {
-            this.stats.getHandledTotal().decrementAndGet();
+            this.queueStatistics.getProcessedMessageCount().decrementAndGet();
             log.error("获取队列消息异常", e);
         }
         return null;
@@ -100,10 +100,10 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
      */
     public MESSAGE_BLOCK getq(long milliSeconds) {
         try {
-            this.stats.getHandledTotal().incrementAndGet();
-            return this.msgQ_.poll(milliSeconds, TimeUnit.MILLISECONDS);
+            this.queueStatistics.getProcessedMessageCount().incrementAndGet();
+            return this.messageQueue.poll(milliSeconds, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-            this.stats.getHandledTotal().decrementAndGet();
+            this.queueStatistics.getProcessedMessageCount().decrementAndGet();
             log.error("获取队列消息异常", e);
         }
         return null;
@@ -113,14 +113,14 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
      * 获取当前队列大小
      */
     public int getQueueSize() {
-        return this.msgQ_.size();
+        return this.messageQueue.size();
     }
 
     /**
      * 获取已入队的消息总数
      */
     public long getHasPutElementsLength() {
-        return this.stats.getReceiveTotal().get();
+        return this.queueStatistics.getReceivedMessageCount().get();
     }
 
     /**
@@ -128,10 +128,10 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
      * 当队列使用率超过80%时返回false
      */
     public boolean isCanPut() {
-        if (this.msgQ_.size() / qLen > 0.8) {
+        if (this.messageQueue.size() / queueCapacity > 0.8) {
             log.info("队列[{}]已达到容量上限(80%), 总容量[{}], 当前大小[{}], 累计接收[{}]",
-                    this.qName_, qLen, this.msgQ_.size(), 
-                    this.stats.getReceiveTotal().get());
+                    this.queueName, queueCapacity, this.messageQueue.size(), 
+                    this.queueStatistics.getReceivedMessageCount().get());
             return false;
         }
         return true;
@@ -141,20 +141,20 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
      * 获取队列名称
      */
     public String getqName() {
-        return qName_;
+        return queueName;
     }
 
     /**
      * 获取队列状态信息
      */
     public List<QueueStatus> getQueueStatus() {
-        List<QueueStatus> status = new ArrayList<>();
-        QueueStatus stat = new QueueStatus();
-        stat.setQueueIndex(1);
-        stat.setQueuelength(this.msgQ_.size());
-        stat.setMessageCount(this.stats.getReceiveTotal().get());
-        stat.setQueuecapacity(qLen);
-        status.add(stat);
-        return status;
+        List<QueueStatus> statusList = new ArrayList<>();
+        QueueStatus queueStatus = new QueueStatus();
+        queueStatus.setIndex(1);
+        queueStatus.setPendingCount(this.messageQueue.size());
+        queueStatus.setProcessedCount(this.queueStatistics.getReceivedMessageCount().get());
+        queueStatus.setCapacity(queueCapacity);
+        statusList.add(queueStatus);
+        return statusList;
     }
 }

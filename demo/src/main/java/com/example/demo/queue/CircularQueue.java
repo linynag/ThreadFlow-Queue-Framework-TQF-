@@ -12,13 +12,13 @@ import java.util.concurrent.locks.ReentrantLock;
  * - 支持并发访问的循环缓冲区
  */
 public class CircularQueue<T> implements Iterable<T> {
-	private int head = 0;
-	private int size = 0;
-	private int capacity = 0;
-	private int modifiedCount = 0;
-	private int lastDequeue = -1;
-	private T[] data = null;
-	private ReentrantLock lock_ = new ReentrantLock();
+	private int headIndex = 0;
+	private int currentSize = 0;
+	private int maxCapacity = 0;
+	private int modificationCount = 0;
+	private int lastDequeuedIndex = -1;
+	private T[] elements = null;
+	private ReentrantLock queueLock = new ReentrantLock();
 
 	/**
 	 * 创建能够容纳16个元素的循环队列。
@@ -36,8 +36,8 @@ public class CircularQueue<T> implements Iterable<T> {
 	@SuppressWarnings("unchecked")
 	public CircularQueue(int capacity) {
 		capacity = capacity > 0 ? capacity : 1;
-		this.capacity = capacity;
-		data = (T[]) new Object[capacity];
+		this.maxCapacity = capacity;
+		elements = (T[]) new Object[capacity];
 	}
 
 	/**
@@ -47,20 +47,20 @@ public class CircularQueue<T> implements Iterable<T> {
 	 *            要加入对尾的元素。
 	 */
 	public void enqueue(T element) {
-		final ReentrantLock lock_ = this.lock_;
-		lock_.lock();
+		final ReentrantLock queueLock = this.queueLock;
+		queueLock.lock();
 		try {
-			int index = calculateIndex(size);
-			data[index] = element;
-			size++;
-			modifiedCount++;
+			int insertIndex = calculateIndex(currentSize);
+			elements[insertIndex] = element;
+			currentSize++;
+			modificationCount++;
 
-			if (size > capacity) {
-				size = capacity;
-				head = calculateIndex(1);
+			if (currentSize > maxCapacity) {
+				currentSize = maxCapacity;
+				headIndex = calculateIndex(1);
 			}
 		} finally {
-			lock_.unlock();
+			queueLock.unlock();
 		}
 	}
 
@@ -70,23 +70,22 @@ public class CircularQueue<T> implements Iterable<T> {
 	 * @return 队首的元素。
 	 */
 	public T dequeue() {
-		final ReentrantLock lock_ = this.lock_;
-		lock_.lock();
+		final ReentrantLock queueLock = this.queueLock;
+		queueLock.lock();
 		try {
-			if (size == 0) {
-
+			if (currentSize == 0) {
 				throw new NoSuchElementException("There is no element");
 			}
 
-			T r = data[head];
-			this.lastDequeue = head;
-			head = calculateIndex(1);
-			size--;
-			modifiedCount++;
+			T result = elements[headIndex];
+			this.lastDequeuedIndex = headIndex;
+			headIndex = calculateIndex(1);
+			currentSize--;
+			modificationCount++;
 
-			return r;
+			return result;
 		} finally {
-			lock_.unlock();
+			queueLock.unlock();
 		}
 	}
 
@@ -95,20 +94,20 @@ public class CircularQueue<T> implements Iterable<T> {
 	 * 
 	 */
 	public void cancelDequeue() {
-		final ReentrantLock lock_ = this.lock_;
-		lock_.lock();
+		final ReentrantLock queueLock = this.queueLock;
+		queueLock.lock();
 		try {
-			if (lastDequeue == -1) {
+			if (lastDequeuedIndex == -1) {
 				return;
 			}
-			if (size == capacity) {
+			if (currentSize == maxCapacity) {
 				return;
 			} else {
-				head = calculateIndex(-1);
-				size++;
+				headIndex = calculateIndex(-1);
+				currentSize++;
 			}
 		} finally {
-			lock_.unlock();
+			queueLock.unlock();
 		}
 	}
 
@@ -118,16 +117,16 @@ public class CircularQueue<T> implements Iterable<T> {
 	 * @return 队首元素。
 	 */
 	public T peek() {
-		final ReentrantLock lock_ = this.lock_;
-		lock_.lock();
+		final ReentrantLock queueLock = this.queueLock;
+		queueLock.lock();
 		try {
-			if (size == 0) {
+			if (currentSize == 0) {
 				throw new NoSuchElementException("There is no element");
 			}
 
-			return data[head];
+			return elements[headIndex];
 		} finally {
-			lock_.unlock();
+			queueLock.unlock();
 		}
 	}
 
@@ -137,11 +136,11 @@ public class CircularQueue<T> implements Iterable<T> {
 	 * @return 队列中元素的个数。
 	 */
 	public int size() {
-		return size;
+		return currentSize;
 	}
 
 	public boolean isEmpty() {
-		return (size == 0);
+		return (currentSize == 0);
 	}
 
 	/**
@@ -152,24 +151,24 @@ public class CircularQueue<T> implements Iterable<T> {
 	@Override
 	public Iterator<T> iterator() {
 		return new Iterator<T>() {
-			private int offset = 0;
+			private int currentOffset = 0;
 
-			// private int modCount = modifiedCount;
+			// private int expectedModCount = modificationCount;
 
 			@Override
 			public boolean hasNext() {
-				return offset < size;
+				return currentOffset < currentSize;
 			}
 
 			@Override
 			public T next() {
 				// 在遍历队列的时候如果队列被修改了则抛出异常。
-				// if (modCount != modifiedCount) {
+				// if (expectedModCount != modificationCount) {
 				// throw new ConcurrentModificationException(
 				// "The archive is modified when iteration.");
 				// }
 
-				return data[calculateIndex(offset++)];
+				return elements[calculateIndex(currentOffset++)];
 			}
 
 			@Override
@@ -198,8 +197,8 @@ public class CircularQueue<T> implements Iterable<T> {
 	// sb.append("]");
 	//
 	// return String.format("Logical: %s <-----> Physical: %s, %d, %d, %d", sb
-	// .toString().replaceAll(", ]$", "]"), Arrays.toString(data),
-	// size, head, lastDequeue);
+	// .toString().replaceAll(", ]$", "]"), Arrays.toString(elements),
+	// currentSize, headIndex, lastDequeuedIndex);
 	// }
 
 	/**
@@ -209,7 +208,7 @@ public class CircularQueue<T> implements Iterable<T> {
 	 * @return 传入的index在队列里对应的下标。
 	 */
 	private int calculateIndex(int offset) {
-		return (head + offset) % capacity;
+		return (headIndex + offset) % maxCapacity;
 	}
 
 	public static void main(String args[]) {

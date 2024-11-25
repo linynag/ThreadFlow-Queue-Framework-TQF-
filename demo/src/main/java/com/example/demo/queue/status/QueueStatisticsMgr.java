@@ -16,19 +16,19 @@ import java.util.concurrent.TimeUnit;
  * - 定时触发采样
  */
 @Getter
-public class QueueStatsMgr {
-    private volatile static QueueStatsMgr instance_ = null;
+public class QueueStatisticsMgr {
+    private volatile static QueueStatisticsMgr instance_ = null;
 
-    private ConcurrentHashMap<String, QueueStats> statistics = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, QueueStatistics> statistics = new ConcurrentHashMap<>();
 
-    private QueueStatsMgr() {
+    private QueueStatisticsMgr() {
     }
 
-    public static QueueStatsMgr getInstance() {
+    public static QueueStatisticsMgr getInstance() {
         if (instance_ == null) {
-            synchronized (QueueStatsMgr.class) {
+            synchronized (QueueStatisticsMgr.class) {
                 if (instance_ == null) {
-                    instance_ = new QueueStatsMgr();
+                    instance_ = new QueueStatisticsMgr();
                     instance_.commitSchedulerTask();
                 }
             }
@@ -36,11 +36,11 @@ public class QueueStatsMgr {
         return instance_;
     }
 
-    public void register(QueueStats stat) {
-        this.statistics.put(stat.getName(), stat);
+    public void register(QueueStatistics stat) {
+        this.statistics.put(stat.getQueueName(), stat);
     }
 
-    public QueueStats getStatistic(String key) {
+    public QueueStatistics getStatistic(String key) {
         if (statistics.containsKey(key)) {
             return statistics.get(key);
         }
@@ -48,14 +48,14 @@ public class QueueStatsMgr {
     }
 
     public void triggerSnap() {
-        for (QueueStats stat : this.statistics.values()) {
-            stat.makdSnap();
+        for (QueueStatistics stat : this.statistics.values()) {
+            stat.makeSnap();
         }
     }
 
-    public List<QueueStats> getStatistics() {
-        ArrayList<QueueStats> list = new ArrayList<>();
-        for (QueueStats stat : this.statistics.values()) {
+    public List<QueueStatistics> getStatistics() {
+        ArrayList<QueueStatistics> list = new ArrayList<>();
+        for (QueueStatistics stat : this.statistics.values()) {
             list.add(stat);
         }
         return list;

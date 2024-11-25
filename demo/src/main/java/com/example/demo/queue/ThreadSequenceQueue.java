@@ -22,17 +22,17 @@ public abstract class ThreadSequenceQueue<MESSAGE_BLOCK> extends SequenceQueue<M
     public MESSAGE_BLOCK getq() {
         try {
             // 增加处理计数
-            stats.getHandledTotal().incrementAndGet();
+            stats.getProcessedMessageCount().incrementAndGet();
             
             // 根据线程ID获取队列索引
-            int qIndex = (int) Thread.currentThread().getId() % threadNum_;
+            int queueIndex = (int) Thread.currentThread().getId() % threadCount;
             
             // 从对应队列获取消息
-            return msgQArray_[qIndex].take();
+            return messageQueueArray[queueIndex].take();
             
         } catch (Exception e) {
             // 获取失败时减少计数
-            stats.getHandledTotal().decrementAndGet();
+            stats.getProcessedMessageCount().decrementAndGet();
             log.error("从队列获取消息失败", e);
             return null;
         }
