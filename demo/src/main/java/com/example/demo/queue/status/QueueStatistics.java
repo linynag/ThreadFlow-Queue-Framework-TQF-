@@ -3,11 +3,11 @@ package com.example.demo.queue.status;
 
 import com.example.demo.queue.CircularQueue;
 import com.example.demo.queue.Queue_I;
+import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.Data;
 
 /**
  * 队列统计信息
@@ -112,7 +112,7 @@ public class QueueStatistics {
         List<QueueSnapshot> snapshots = new ArrayList<>();
         while (!snapshotQueue.isEmpty()) {
             try {
-                snapshots.add(snapshotQueue.dequeue());
+                snapshots.add(snapshotQueue.deleteQueue());
             } catch (Exception e) {
                 break;
             }
