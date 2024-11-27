@@ -1,4 +1,4 @@
-package com.example.demo.queue;
+package com.example.demo.queue.absqueue;
 
 import lombok.extern.slf4j.Slf4j;
 

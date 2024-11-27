@@ -1,7 +1,8 @@
-package com.example.demo.queue;
+package com.example.demo.queue.absqueue;
 
-import com.example.demo.queue.status.QueueStatistics;
-import com.example.demo.queue.status.QueueStatus;
+import com.example.demo.queue.mgr.QueueMMLMgr;
+import com.example.demo.queue.model.QueueStatistics;
+import com.example.demo.queue.model.QueueStatus;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -150,9 +151,9 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
     public List<QueueStatus> getQueueStatus() {
         List<QueueStatus> statusList = new ArrayList<>();
         QueueStatus queueStatus = new QueueStatus();
-        queueStatus.setIndex(1);
+        queueStatus.setQueueIndex(1);
         queueStatus.setPendingCount(this.messageQueue.size());
-        queueStatus.setProcessedCount(this.queueStatistics.getReceivedMessageCount().get());
+        queueStatus.setProcessedCount(this.queueStatistics.getProcessedMessageCount().get());
         queueStatus.setCapacity(queueCapacity);
         statusList.add(queueStatus);
         return statusList;

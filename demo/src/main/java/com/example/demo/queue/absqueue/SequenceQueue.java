@@ -1,7 +1,8 @@
-package com.example.demo.queue;
+package com.example.demo.queue.absqueue;
 
-import com.example.demo.queue.status.QueueStatistics;
-import com.example.demo.queue.status.QueueStatus;
+import com.example.demo.queue.mgr.QueueMMLMgr;
+import com.example.demo.queue.model.QueueStatistics;
+import com.example.demo.queue.model.QueueStatus;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -22,34 +23,35 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 public abstract class SequenceQueue<MESSAGE_BLOCK> implements Queue_I {
 
-    // 队列统计信息
+    // 基本配置
+    private String queueName;
+    protected int threadCount = 1;
+    private int queueCapacity;
+    
+    // 线程池相关
+    private Executor threadPoolExecutor;
+    private AtomicInteger threadQueueIndex = new AtomicInteger(0);
+    protected BlockingQueue<MESSAGE_BLOCK>[] messageQueueArray;
+    
+    // 统计信息
     QueueStatistics stats = new QueueStatistics();
-
-    // 每个线程的消息计数器
     private AtomicLong[] threadMessageCounters;
     private HashMap<Integer, AtomicLong> threadIndexToMessageCountMap = new HashMap<>();
 
-    // 线程数和队列名称
-    protected int threadCount = 1;
-    private String queueName;
-    private Executor threadPoolExecutor;
+    // 线程本地队列
+    private final ThreadLocal<BlockingQueue<MESSAGE_BLOCK>> threadLocalQueue = new ThreadLocal<BlockingQueue<MESSAGE_BLOCK>>() {
+        // getQ之前,初始化每个线程对应的队列
+        @Override
+        protected BlockingQueue<MESSAGE_BLOCK> initialValue() {
+            int qIndex = threadQueueIndex.getAndIncrement();
+            return messageQueueArray[qIndex];
+        }
+    };
 
-    // 线程队列索引
-    private AtomicInteger threadQueueIndex = new AtomicInteger(0);
-    protected BlockingQueue<MESSAGE_BLOCK>[] messageQueueArray;
-
-    // 队列容量
-    private int queueCapacity;
-
-	// 线程本地队列
-	private final ThreadLocal<BlockingQueue<MESSAGE_BLOCK>> threadLocalQueue = new ThreadLocal<BlockingQueue<MESSAGE_BLOCK>>() {
-		// getQ之前,初始化每个线程对应的队列
-		@Override
-		protected BlockingQueue<MESSAGE_BLOCK> initialValue() {
-			int qIndex = threadQueueIndex.getAndIncrement();
-			return messageQueueArray[qIndex];
-		}
-	};
+    /**
+     * 具体的队列处理逻辑,由子类实现
+     */
+    public abstract void svc();
 
     /**
      * 启动队列处理器
@@ -90,11 +92,6 @@ public abstract class SequenceQueue<MESSAGE_BLOCK> implements Queue_I {
         this.stats.setQueueInstance(this);
         this.stats.register();
     }
-
-    /**
-     * 具体的队列处理逻辑,由子类实现
-     */
-    public abstract void svc();
 
     /**
      * 添加消息到指定序号的队列
@@ -146,6 +143,10 @@ public abstract class SequenceQueue<MESSAGE_BLOCK> implements Queue_I {
         }
     }
 
+    public String getqName() {
+        return queueName;
+    }
+
     /**
      * 检查队列是否可以继续添加消息
      * 当任一队列使用率超过80%时返回false
@@ -183,16 +184,12 @@ public abstract class SequenceQueue<MESSAGE_BLOCK> implements Queue_I {
         }
     }
 
-    public String getqName() {
-        return queueName;
-    }
-
     @Override
     public List<QueueStatus> getQueueStatus() {
         List<QueueStatus> status = new ArrayList<>();
         for (int i = 0; i < this.threadCount; i++) {
             QueueStatus queueStatus = new QueueStatus();
-            queueStatus.setIndex(i + 1);
+            queueStatus.setQueueIndex(i + 1);
             queueStatus.setProcessedCount(this.threadMessageCounters[i].get());
             queueStatus.setPendingCount(this.messageQueueArray[i].size());
             queueStatus.setCapacity(queueCapacity);

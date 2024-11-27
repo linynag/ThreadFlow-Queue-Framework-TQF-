@@ -1,6 +1,6 @@
-package com.example.demo.queue;
+package com.example.demo.queue.absqueue;
 
-import com.example.demo.queue.status.QueueStatus;
+import com.example.demo.queue.model.QueueStatus;
 
 import java.util.List;
 

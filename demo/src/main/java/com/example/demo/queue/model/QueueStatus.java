@@ -1,4 +1,4 @@
-package com.example.demo.queue.status;
+package com.example.demo.queue.model;
 
 import lombok.Data;
 
@@ -15,7 +15,7 @@ public class QueueStatus {
     /**
      * 队列位置ID
      */
-    private int index;
+    private int queueIndex;
 
     /**
      * 已处理的消息数量

@@ -1,4 +1,4 @@
-package com.example.demo.queue;
+package com.example.demo.queue.model;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -12,12 +12,39 @@ import java.util.concurrent.locks.ReentrantLock;
  * - 支持并发访问的循环缓冲区
  */
 public class CircularQueue<T> implements Iterable<T> {
+    /**
+     * 队列头部元素的索引位置
+     */
     private int headIndex = 0;
+
+    /**
+     * 队列当前元素个数
+     */
     private int currentSize = 0;
+
+    /**
+     * 队列最大容量
+     */
     private int maxCapacity = 0;
+
+    /**
+     * 队列修改次数,用于迭代器的快速失败检查
+     */
     private int modificationCount = 0;
+
+    /**
+     * 最后一次出队元素的索引位置
+     */
     private int lastDequeuedIndex = -1;
+
+    /**
+     * 存储队列元素的数组
+     */
     private T[] elements = null;
+
+    /**
+     * 用于同步访问的重入锁
+     */
     private ReentrantLock queueLock = new ReentrantLock();
 
     /**
@@ -46,7 +73,7 @@ public class CircularQueue<T> implements Iterable<T> {
      *
      * @param element 要加入对尾的元素。
      */
-    public void enqueue(T element) {
+    public void addElementToQueue(T element) {
         final ReentrantLock queueLock = this.queueLock;
         queueLock.lock();
         try {
@@ -69,7 +96,7 @@ public class CircularQueue<T> implements Iterable<T> {
      *
      * @return 队首的元素。
      */
-    public T deleteQueue() {
+    public T removeElementFromQueue() {
         final ReentrantLock queueLock = this.queueLock;
         queueLock.lock();
         try {

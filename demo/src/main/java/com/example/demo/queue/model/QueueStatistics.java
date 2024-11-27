@@ -1,8 +1,7 @@
-package com.example.demo.queue.status;
+package com.example.demo.queue.model;
 
 
-import com.example.demo.queue.CircularQueue;
-import com.example.demo.queue.Queue_I;
+import com.example.demo.queue.absqueue.Queue_I;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -88,7 +87,7 @@ public class QueueStatistics {
         long processedDelta = currentProcessedCount - previousProcessedCount;
         this.previousReceivedCount = currentReceivedCount;
         this.previousProcessedCount = currentProcessedCount;
-        snapshotQueue.enqueue(new QueueSnapshot(startTime, endTime, receivedDelta, processedDelta));
+        snapshotQueue.addElementToQueue(new QueueSnapshot(startTime, endTime, receivedDelta, processedDelta));
     }
 
     /**
@@ -112,7 +111,7 @@ public class QueueStatistics {
         List<QueueSnapshot> snapshots = new ArrayList<>();
         while (!snapshotQueue.isEmpty()) {
             try {
-                snapshots.add(snapshotQueue.deleteQueue());
+                snapshots.add(snapshotQueue.removeElementFromQueue());
             } catch (Exception e) {
                 break;
             }

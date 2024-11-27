@@ -1,4 +1,4 @@
-package com.example.demo.queue.status;
+package com.example.demo.queue.model;
 
 import lombok.Data;
 

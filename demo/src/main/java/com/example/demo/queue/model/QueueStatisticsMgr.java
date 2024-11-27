@@ -1,6 +1,6 @@
-package com.example.demo.queue.status;
+package com.example.demo.queue.model;
 
-import com.example.demo.timer.TimeScheduler;
+import com.example.demo.queue.timer.TimeScheduler;
 import lombok.Getter;
 
 import java.util.ArrayList;

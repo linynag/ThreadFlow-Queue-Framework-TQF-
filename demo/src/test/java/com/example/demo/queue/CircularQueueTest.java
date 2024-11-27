@@ -1,44 +1,33 @@
 package com.example.demo.queue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.example.demo.queue.model.CircularQueue;
 
 class CircularQueueTest {
         public static void main(String args[]) {
         CircularQueue<String> cq = new CircularQueue<>(5);
-        cq.enqueue("A");
+        cq.addElementToQueue("A");
         System.out.println(cq.toString());
 
         cq.cancelDequeue();
 
         System.out.println(cq.toString());
-        cq.enqueue("B");
+        cq.addElementToQueue("B");
         System.out.println(cq.toString());
-        cq.enqueue("C");
+        cq.addElementToQueue("C");
         System.out.println(cq.toString());
-        cq.enqueue("D");
+        cq.addElementToQueue("D");
         System.out.println(cq.toString());
-        cq.enqueue("E");
-        System.out.println(cq.toString());
-
-        cq.deleteQueue();
-        System.out.println(cq.toString());
-        cq.deleteQueue();
-        System.out.println(cq.toString());
-        cq.deleteQueue();
-        System.out.println(cq.toString());
-        cq.deleteQueue();
-        System.out.println(cq.toString());
-        cq.cancelDequeue();
-
+        cq.addElementToQueue("E");
         System.out.println(cq.toString());
 
-        cq.cancelDequeue();
-
+        cq.removeElementFromQueue();
         System.out.println(cq.toString());
-
-        cq.enqueue("F");
+        cq.removeElementFromQueue();
         System.out.println(cq.toString());
-
+        cq.removeElementFromQueue();
+        System.out.println(cq.toString());
+        cq.removeElementFromQueue();
+        System.out.println(cq.toString());
         cq.cancelDequeue();
 
         System.out.println(cq.toString());
@@ -47,13 +36,24 @@ class CircularQueueTest {
 
         System.out.println(cq.toString());
 
-        cq.enqueue("G");
+        cq.addElementToQueue("F");
         System.out.println(cq.toString());
 
-        cq.enqueue("H");
+        cq.cancelDequeue();
+
         System.out.println(cq.toString());
 
-        cq.enqueue("I");
+        cq.cancelDequeue();
+
+        System.out.println(cq.toString());
+
+        cq.addElementToQueue("G");
+        System.out.println(cq.toString());
+
+        cq.addElementToQueue("H");
+        System.out.println(cq.toString());
+
+        cq.addElementToQueue("I");
         System.out.println(cq.toString());
 
         cq.cancelDequeue();

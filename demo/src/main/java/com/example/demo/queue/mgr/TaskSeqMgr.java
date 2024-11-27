@@ -1,4 +1,4 @@
-package com.example.demo.queue;
+package com.example.demo.queue.mgr;
 
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
