@@ -1,0 +1,7 @@
+queue:
+  defaultThreadCount: 2
+  defaultQueueCapacity: 10000
+  defaultTimeout: 5000
+  warningThreshold: 0.8
+  statisticsInterval: 5
+  historySize: 30 

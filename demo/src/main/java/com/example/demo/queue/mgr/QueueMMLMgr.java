@@ -1,9 +1,7 @@
 package com.example.demo.queue.mgr;
 
-import com.example.demo.queue.absqueue.Queue_I;
-
-import java.util.HashMap;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 队列管理器
@@ -11,14 +9,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * 采用单例模式实现
  */
 public class QueueMMLMgr {
-    // 单例实例
-    private static QueueMMLMgr instance = null;
-
-    // 用于同步的锁对象
-    private ReentrantLock instanceLock = new ReentrantLock();
+    // 单例实例,使用volatile防止指令重排
+    private static volatile QueueMMLMgr instance = null;
     
     // 存储队列映射关系,key为队列名称,value为队列实例
-    private HashMap<String, Queue_I> queueInstanceMap = new HashMap<>();
+    private final ConcurrentHashMap<String, BlockingQueue<Object>> queueMap = new ConcurrentHashMap<>();
 
     /**
      * 私有构造函数,防止外部实例化
@@ -30,7 +25,11 @@ public class QueueMMLMgr {
      */
     public static QueueMMLMgr getInstance() {
         if (instance == null) {
-            instance = new QueueMMLMgr();
+            synchronized (QueueMMLMgr.class) {
+                if (instance == null) {
+                    instance = new QueueMMLMgr();
+                }
+            }
         }
         return instance;
     }
@@ -38,15 +37,10 @@ public class QueueMMLMgr {
     /**
      * 注册队列实例
      * @param queueName 队列名称
-     * @param queueInstance 队列实例
+     * @param queue 队列实例
      */
-    public void registerQueueMML(String queueName, Queue_I queueInstance) {
-        instanceLock.lock();
-        try {
-            queueInstanceMap.put(queueName, queueInstance);
-        } finally {
-            instanceLock.unlock();
-        }
+    public void registerQueueMML(String queueName, BlockingQueue<Object> queue) {
+        queueMap.put(queueName, queue);
     }
 
     /**
@@ -54,12 +48,7 @@ public class QueueMMLMgr {
      * @param queueName 队列名称
      */
     public void removeQueueMML(String queueName) {
-        instanceLock.lock();
-        try {
-            queueInstanceMap.remove(queueName);
-        } finally {
-            instanceLock.unlock();
-        }
+        queueMap.remove(queueName);
     }
 
     /**
@@ -68,11 +57,6 @@ public class QueueMMLMgr {
      * @return 是否已注册
      */
     public boolean isRegisterQueueMML(String queueName) {
-        instanceLock.lock();
-        try {
-            return queueInstanceMap.containsKey(queueName);
-        } finally {
-            instanceLock.unlock();
-        }
+        return queueMap.containsKey(queueName);
     }
 }

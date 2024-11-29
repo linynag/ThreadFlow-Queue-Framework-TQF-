@@ -32,6 +32,8 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
     // 队列容量
     private int queueCapacity;
 
+    
+
     /**
      * 启动队列处理器
      * 
@@ -41,7 +43,7 @@ public abstract class Queue<MESSAGE_BLOCK> implements Queue_I {
      */
     public void start(String queueName, int threadNum, int queueCapacity) {
         this.queueName = queueName;
-        QueueMMLMgr.getInstance().registerQueueMML(queueName, this);
+        QueueMMLMgr.getInstance().registerQueueMML(queueName, (BlockingQueue<Object>) this);
         this.queueStatistics.setQueueName(queueName);
 
         // 设置默认线程数和队列长度

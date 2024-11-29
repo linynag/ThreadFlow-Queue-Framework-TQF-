@@ -95,9 +95,7 @@ public class QueueStatisticsMgr {
      * 初始延迟10秒,之后每5秒执行一次
      */
     private void commitSchedulerTask() {
-        TimeScheduler.instance().start(2);
-        TimeScheduler.instance().registerScheduledTask(new Runnable() {
-
+        TimeScheduler.getInstance().registerScheduledTask(new Runnable() {
             @Override
             public void run() {
                 triggerSnap();
