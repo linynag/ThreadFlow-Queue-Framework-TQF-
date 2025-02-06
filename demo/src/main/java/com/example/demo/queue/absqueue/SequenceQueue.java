@@ -60,7 +60,7 @@ public abstract class SequenceQueue<MESSAGE_BLOCK> implements Queue_I {
     public void start(String queueName, int threadCount, int queueCapacity) {
         this.queueName = queueName;
         this.stats.setQueueName(queueName);
-        QueueMMLMgr.getInstance().registerQueueMML(queueName, this);
+        QueueMMLMgr.getInstance().registerQueueMML(queueName, (BlockingQueue<Object>) this);
 
         // 设置默认线程数和队列长度
         threadCount = threadCount <= 0 ? 2 : threadCount;
